@@ -1,0 +1,65 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+struct Sphere
+{
+    float radius;
+    float3 position;
+    float speed;
+    float3 direction;
+};
+
+float4 minWorld;
+float4 maxWorld;
+int dElements;
+int sElements;
+float deltaTime;
+
+RWStructuredBuffer<Sphere> dynamicSphere;
+RWStructuredBuffer<Sphere> staticSphere;
+
+float random(float2 uv) {
+    return frac(sin(dot(uv, float2(12.9898, 78.233)))) * 43758.5453123;
+}
+
+[numthreads(10,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    if (id.x < dElements) {
+        Sphere ds = dynamicSphere[id.x];
+
+        ds.position += ds.direction * ds.speed * deltaTime;
+
+        if (ds.position.x - ds.radius < minWorld.x || ds.position.z - ds.radius < minWorld.z ||
+            ds.position.x + ds.radius > maxWorld.x || ds.position.z + ds.radius > maxWorld.z) {
+
+            ds.direction = ds.direction * -1;
+            ds.position += ds.direction * 0.5f;
+            float rad = radians(random(float2(ds.position.x, ds.position.z)) - 0.5);
+
+            float cs = cos(rad);
+            float sn = sin(rad);
+
+            ds.direction.x += ds.direction.x * cs + ds.direction.z * sn;
+            ds.direction.z += ds.direction.x * sn + ds.direction.z * cs;
+            ds.direction = normalize(ds.direction);
+        }
+        
+
+        for (int i = 0; i < sElements; i++) {
+
+            Sphere ss = staticSphere[i];
+            float3 dir = ds.position - ss.position;
+            dir.y = 0;
+
+            float mag = length(dir);
+
+            if (mag < ss.radius + ds.radius) {
+                ds.direction = normalize(dir);
+                ds.position += ds.direction * (ss.radius + ds.radius - mag);
+            }
+        }
+
+        dynamicSphere[id.x] = ds;
+    }
+}
