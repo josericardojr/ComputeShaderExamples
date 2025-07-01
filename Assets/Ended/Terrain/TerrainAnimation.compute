@@ -1,0 +1,13 @@
+// Each #kernel tells which function to compile; you can have many kernels
+#pragma kernel CSMain
+
+RWStructuredBuffer<float3> mesh;
+float time;
+
+[numthreads(16,1,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float3 pos = mesh[id.x];
+    pos.y = sin(id.x * 0.1 + id.z * 0.1 + time);
+    mesh[id.x] = pos;
+}
